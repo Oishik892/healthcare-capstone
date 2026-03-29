@@ -96,7 +96,39 @@ const updateMyDoctorProfile = async (req, res) => {
   }
 };
 
+const getAllDoctors = async (req, res) => {
+  try {
+    const doctors = await prisma.doctor.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        id: "asc",
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Doctors fetched successfully",
+      data: doctors,
+    });
+  } catch (error) {
+    console.error("Get all doctors error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
 module.exports = {
   getMyDoctorProfile,
   updateMyDoctorProfile,
+  getAllDoctors,
 };

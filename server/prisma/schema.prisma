@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime @default(now())
+
+  patient      Patient?
+  doctor       Doctor?
+  uploadedLabResults LabResult[] @relation("LabResultUploader")
+}
+
+model Patient {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @unique
+  phone       String?
+  address     String?
+  dateOfBirth DateTime?
+  gender      String?
+
+  user           User            @relation(fields: [userId], references: [id])
+  appointments   Appointment[]
+  medicalHistory MedicalHistory?
+  prescriptions Prescription[]
+  labResults LabResult[]
+  medicationReminders MedicationReminder[]
+}
+
+model Doctor {
+  id             Int      @id @default(autoincrement())
+  userId         Int      @unique
+  specialization String
+  qualification  String?
+
+  user         User          @relation(fields: [userId], references: [id])
+  appointments Appointment[]
+  prescriptions Prescription[]
+}
+
+model Appointment {
+  id              Int      @id @default(autoincrement())
+  patientId       Int
+  doctorId        Int
+  appointmentDate DateTime
+  status          String   @default("PENDING")
+  reason          String?
+
+  patient Patient @relation(fields: [patientId], references: [id])
+  doctor  Doctor  @relation(fields: [doctorId], references: [id])
+  prescriptions Prescription[]
+}
+model MedicalHistory {
+  id         Int      @id @default(autoincrement())
+  patientId  Int      @unique
+  conditions String?
+  allergies  String?
+  surgeries  String?
+  notes      String?
+  updatedAt  DateTime @updatedAt
+
+  patient    Patient   @relation(fields: [patientId], references: [id])
+}
+model Prescription {
+  id            Int                @id @default(autoincrement())
+  patientId     Int
+  doctorId      Int
+  appointmentId Int?
+  diagnosis     String?
+  notes         String?
+  createdAt     DateTime           @default(now())
+
+  patient       Patient            @relation(fields: [patientId], references: [id])
+  doctor        Doctor             @relation(fields: [doctorId], references: [id])
+  appointment   Appointment?       @relation(fields: [appointmentId], references: [id])
+  items         PrescriptionItem[]
+}
+
+model PrescriptionItem {
+  id             Int          @id @default(autoincrement())
+  prescriptionId Int
+  medicineName   String
+  dosage         String?
+  frequency      String?
+  duration       String?
+  instructions   String?
+
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+}
+model LabResult {
+  id               Int      @id @default(autoincrement())
+  patientId        Int
+  uploadedByUserId Int
+  testName         String
+  resultSummary    String?
+  fileUrl          String
+  reportDate       DateTime @default(now())
+  createdAt        DateTime @default(now())
+
+  patient          Patient  @relation(fields: [patientId], references: [id])
+  uploadedBy       User     @relation("LabResultUploader", fields: [uploadedByUserId], references: [id])
+}
+
+enum MedicationLogStatus {
+  TAKEN
+  SKIPPED
+  MISSED
+}
+
+model MedicationReminder {
+  id           Int             @id @default(autoincrement())
+  patientId    Int
+  medicineName String
+  dosage       String?
+  frequency    String?
+  times        Json
+  startDate    DateTime
+  endDate      DateTime?
+  notes        String?
+  isActive     Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  patient      Patient         @relation(fields: [patientId], references: [id])
+  logs         MedicationLog[]
+}
+
+model MedicationLog {
+  id         Int                 @id @default(autoincrement())
+  reminderId Int
+  logDate    DateTime
+  status     MedicationLogStatus
+  note       String?
+  createdAt  DateTime            @default(now())
+
+  reminder   MedicationReminder  @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+
+  @@index([reminderId, logDate])
+}
